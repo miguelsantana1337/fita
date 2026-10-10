@@ -1,0 +1,11 @@
+.git
+.runtime
+.tools
+.venv
+.vercel
+.env*
+dist
+node_modules
+test
+test-support
+*.log

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4b6a6" />
     <meta name="description" content="Extraia e salve o áudio de vídeos do YouTube no seu computador." />
     <title>FITA — áudio no seu computador</title>
-    <link rel="stylesheet" href="/styles.css?v=1.1.0" />
+    <link rel="stylesheet" href="/styles.css?v=2.0.0" />
   </head>
   <body>
     <div class="page-shell">
@@ -17,15 +17,47 @@
           </span>
           <span>FITA</span>
         </a>
-        <div class="local-badge"><span></span> Rodando só neste Mac</div>
+        <div class="account-area">
+          <div class="local-badge"><span></span> Online e protegido</div>
+          <span id="account-email" class="account-email" hidden></span>
+          <button id="sign-out" class="quiet-button compact" type="button" hidden>Sair</button>
+        </div>
       </header>
 
-      <main>
+      <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
+        <div>
+          <p class="eyebrow">Sua cabine privada</p>
+          <h1 id="auth-title">Entre para soltar o <em>play.</em></h1>
+          <p>Os downloads usam processamento isolado e arquivos privados. Crie sua conta gratuita ou entre para continuar.</p>
+        </div>
+        <form id="auth-form" class="auth-form">
+          <div class="auth-switch" role="tablist" aria-label="Acesso">
+            <button id="sign-in-tab" class="is-active" type="button">Entrar</button>
+            <button id="sign-up-tab" type="button">Criar conta</button>
+          </div>
+          <div id="name-field" class="auth-field" hidden>
+            <label for="auth-name">Seu nome</label>
+            <input id="auth-name" name="name" autocomplete="name" placeholder="Ex.: Miguel Santana" />
+          </div>
+          <div class="auth-field">
+            <label for="auth-email">E-mail</label>
+            <input id="auth-email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required />
+          </div>
+          <div class="auth-field">
+            <label for="auth-password">Senha</label>
+            <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="Mínimo de 8 caracteres" required />
+          </div>
+          <button id="auth-submit" class="download-button" type="submit">Entrar no FITA</button>
+          <div id="auth-status" class="status" role="status" aria-live="polite" hidden></div>
+        </form>
+      </section>
+
+      <main id="app-content" hidden>
         <section class="hero" aria-labelledby="page-title">
           <div class="hero-copy">
             <p class="eyebrow">Áudio direto para o seu computador</p>
             <h1 id="page-title">Do link para o <em>play.</em></h1>
-            <p class="intro">Cole um vídeo, uma lista de links ou uma playlist do YouTube. O FITA organiza a fila e salva tudo sem cadastro, sem nuvem.</p>
+            <p class="intro">Cole um vídeo, uma lista de links ou uma playlist do YouTube. O FITA organiza a fila, processa em ambiente isolado e entrega arquivos privados.</p>
           </div>
 
           <div class="tape" aria-hidden="true">
@@ -120,7 +152,7 @@
           <div id="batch-mode" class="mode-panel" role="tabpanel" aria-labelledby="batch-tab" hidden>
             <div class="batch-heading">
               <div>
-                <p class="result-label">Fila rápida local</p>
+                <p class="result-label">Fila rápida na nuvem</p>
                 <h2>Monte uma mixtape inteira.</h2>
               </div>
               <p>Até 50 faixas, com erros isolados e um ZIP no final.</p>
@@ -203,9 +235,9 @@
 
       <footer>
         <p>Use o FITA apenas para conteúdos próprios, autorizados ou permitidos por lei.</p>
-        <p>Processamento local · arquivos temporários expiram 2 h após o término</p>
+        <p>Processamento isolado · armazenamento privado · links de download temporários</p>
       </footer>
     </div>
-    <script src="/app.js?v=1.1.0" type="module"></script>
+    <script src="/app.js?v=2.0.0" type="module"></script>
   </body>
 </html>

@@ -1,15 +1,28 @@
 {
   "name": "fita-youtube-local",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Aplicativo local para extrair áudio do YouTube em uma faixa ou em lote.",
+  "description": "Aplicativo protegido para extrair áudio do YouTube em uma faixa ou em lote.",
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "migrate": "node scripts/migrate.mjs",
     "setup": "node scripts/setup.mjs",
-    "start": "node src/server.js",
+    "start": "npm run build && node src/server.js",
     "test": "node --test"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@neondatabase/auth": "^0.5.0-beta",
+    "@neondatabase/serverless": "^1.2.0",
+    "@vercel/blob": "^2.8.1",
+    "@vercel/sandbox": "^3.6.1",
+    "jose": "^6.2.12"
+  },
+  "devDependencies": {
+    "@neon/config": "^1.8.6",
+    "esbuild": "^0.28.2"
   }
 }

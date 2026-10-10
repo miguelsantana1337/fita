@@ -1,3 +1,17 @@
+import { createAuthClient } from "@neondatabase/auth";
+
+const authClient = createAuthClient(__NEON_AUTH_URL__);
+const runtimeBadge = document.querySelector(".local-badge");
+const authPanel = document.querySelector("#auth-panel");
+const authForm = document.querySelector("#auth-form");
+const authStatus = document.querySelector("#auth-status");
+const authSubmit = document.querySelector("#auth-submit");
+const signInTab = document.querySelector("#sign-in-tab");
+const signUpTab = document.querySelector("#sign-up-tab");
+const nameField = document.querySelector("#name-field");
+const appContent = document.querySelector("#app-content");
+const accountEmail = document.querySelector("#account-email");
+const signOutButton = document.querySelector("#sign-out");
 const linkForm = document.querySelector("#link-form");
 const downloadForm = document.querySelector("#download-form");
 const batchForm = document.querySelector("#batch-form");
@@ -24,6 +38,10 @@ let lastBatch = null;
 let batchMutationActive = false;
 let batchReconcilePending = false;
 let singleJobActive = false;
+let authMode = "sign-in";
+let accessToken = null;
+let batchRunGeneration = 0;
+let downloadsReady = false;
 
 const TERMINAL_BATCH_STATES = new Set(["completed", "completed_with_errors", "error", "cancelled"]);
 const STATE_LABELS = {
@@ -40,7 +58,7 @@ const STATE_LABELS = {
 function syncBatchControls() {
   const terminal = !lastBatch || TERMINAL_BATCH_STATES.has(lastBatch.state);
   const blocked = batchMutationActive || batchReconcilePending;
-  batchButton.disabled = blocked || !terminal;
+  batchButton.disabled = !downloadsReady || blocked || !terminal;
   cancelBatchButton.disabled = blocked;
   for (const action of batchList.querySelectorAll(".item-action")) {
     const item = action.closest(".batch-item")?.currentItem;
@@ -59,19 +77,140 @@ function setStatus(target, message, type = "error") {
   target.hidden = !message;
 }
 
+async function token() {
+  if (accessToken) return accessToken;
+  const { data, error } = await authClient.token();
+  if (error || !data?.token) throw new Error("Sua sessão expirou. Entre novamente.");
+  accessToken = data.token;
+  return accessToken;
+}
+
 async function api(path, options = {}) {
+  const publicRequest = path === "/api/health";
+  const headers = { "content-type": "application/json", ...(options.headers || {}) };
+  if (!publicRequest) headers.authorization = `Bearer ${await token()}`;
   const response = await fetch(path, {
     ...options,
-    headers: { "content-type": "application/json", ...(options.headers || {}) },
+    headers,
   });
   const data = await response.json();
   if (!response.ok) {
+    if (response.status === 401) accessToken = null;
     const error = new Error(data.error || "Não foi possível concluir essa ação.");
     error.status = response.status;
     throw error;
   }
   return data;
 }
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runJob(id) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      return await api(`/api/jobs/${id}/run`, { method: "POST", body: "{}" });
+    } catch (error) {
+      if (error.status !== 429 || attempt === 7) throw error;
+      await delay(3_000);
+    }
+  }
+}
+
+async function requestDownload(path) {
+  const result = await api(path, { method: "POST", body: "{}" });
+  window.location.assign(result.url);
+}
+
+function startBatchRuns(batch) {
+  const generation = ++batchRunGeneration;
+  const queue = batch.items.filter((item) => item.state === "queued").map((item) => item.id);
+  const workerCount = Math.min(batch.concurrency || 3, queue.length);
+
+  async function worker() {
+    while (queue.length && generation === batchRunGeneration) {
+      const id = queue.shift();
+      try {
+        await runJob(id);
+      } catch (error) {
+        setStatus(batchStatusBox, `${error.message} A fila continuará com as demais faixas.`, "warning");
+      }
+    }
+  }
+
+  Promise.all(Array.from({ length: workerCount }, () => worker())).then(() => {
+    if (generation === batchRunGeneration && currentBatchId === batch.id) forceBatchRefresh(batch.id, 100);
+  });
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const signingUp = mode === "sign-up";
+  signInTab.classList.toggle("is-active", !signingUp);
+  signUpTab.classList.toggle("is-active", signingUp);
+  nameField.hidden = !signingUp;
+  document.querySelector("#auth-name").required = signingUp;
+  document.querySelector("#auth-password").autocomplete = signingUp ? "new-password" : "current-password";
+  authSubmit.textContent = signingUp ? "Criar conta" : "Entrar no FITA";
+  setStatus(authStatus, "");
+}
+
+function showAuthenticated(user) {
+  authPanel.hidden = true;
+  appContent.hidden = false;
+  accountEmail.textContent = user.email || "Conta FITA";
+  accountEmail.hidden = false;
+  signOutButton.hidden = false;
+}
+
+function showSignedOut() {
+  accessToken = null;
+  authPanel.hidden = false;
+  appContent.hidden = true;
+  accountEmail.hidden = true;
+  signOutButton.hidden = true;
+}
+
+signInTab.addEventListener("click", () => setAuthMode("sign-in"));
+signUpTab.addEventListener("click", () => setAuthMode("sign-up"));
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  authSubmit.disabled = true;
+  setStatus(authStatus, authMode === "sign-up" ? "Criando sua conta…" : "Entrando…", "loading");
+  const email = document.querySelector("#auth-email").value.trim();
+  const password = document.querySelector("#auth-password").value;
+  try {
+    const result = authMode === "sign-up"
+      ? await authClient.signUp.email({ email, password, name: document.querySelector("#auth-name").value.trim() })
+      : await authClient.signIn.email({ email, password });
+    if (result.error) throw new Error(result.error.message || "Não foi possível autenticar.");
+    const session = await authClient.getSession();
+    if (!session.data?.user) {
+      setStatus(authStatus, "Conta criada. Confira seu e-mail para confirmar o acesso e depois entre.", "success");
+      setAuthMode("sign-in");
+      return;
+    }
+    accessToken = null;
+    await token();
+    showAuthenticated(session.data.user);
+  } catch (error) {
+    setStatus(authStatus, error.message || "Não foi possível autenticar.");
+  } finally {
+    authSubmit.disabled = false;
+  }
+});
+
+signOutButton.addEventListener("click", async () => {
+  signOutButton.disabled = true;
+  try {
+    await authClient.signOut();
+  } finally {
+    showSignedOut();
+    signOutButton.disabled = false;
+  }
+});
 
 function switchMode(mode) {
   const showBatch = mode === "batch";
@@ -110,6 +249,10 @@ function showTrack(track) {
 
 linkForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!downloadsReady) {
+    setStatus(statusBox, "Os downloads estão pausados até a saída residencial ser configurada.", "warning");
+    return;
+  }
   if (singleJobActive) return;
   clearTimeout(pollTimer);
   trackCard.hidden = true;
@@ -152,6 +295,7 @@ downloadForm.addEventListener("submit", async (event) => {
         quality: document.querySelector("#quality").value,
       }),
     });
+    runJob(job.id).catch((error) => setStatus(statusBox, error.message));
     await pollJob(job.id);
   } catch (error) {
     progressCard.hidden = true;
@@ -187,7 +331,7 @@ async function pollJob(id) {
     if (job.state === "ready") {
       document.querySelector("#progress-title").textContent = "Faixa pronta. Iniciando download…";
       document.querySelector("#progress-detail").textContent = job.filename;
-      window.location.assign(job.downloadUrl);
+      await requestDownload(job.downloadUrl);
       downloadButton.disabled = false;
       searchButton.disabled = false;
       urlInput.disabled = false;
@@ -208,6 +352,10 @@ async function pollJob(id) {
 
 batchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!downloadsReady) {
+    setStatus(batchStatusBox, "Os downloads estão pausados até a saída residencial ser configurada.", "warning");
+    return;
+  }
   if (batchMutationActive || batchReconcilePending) return;
   const hadBatch = Boolean(lastBatch);
   setBatchMutationActive(true);
@@ -236,6 +384,7 @@ batchForm.addEventListener("submit", async (event) => {
     currentBatchId = batch.id;
     renderBatch(batch);
     batchProgress.scrollIntoView({ behavior: "smooth", block: "start" });
+    startBatchRuns(batch);
     scheduleBatchPoll(batch);
   } catch (error) {
     if (!hadBatch) batchProgress.hidden = true;
@@ -323,10 +472,19 @@ function buildBatchItem() {
   const action = document.createElement("button");
   action.className = "item-action";
   action.type = "button";
-  action.addEventListener("click", () => {
+  action.addEventListener("click", async () => {
     const item = row.currentItem;
     if (!item) return;
-    if (item.state === "ready") window.location.assign(item.downloadUrl);
+    if (item.state === "ready") {
+      action.disabled = true;
+      try {
+        await requestDownload(item.downloadUrl);
+      } catch (error) {
+        setStatus(batchStatusBox, error.message);
+      } finally {
+        action.disabled = false;
+      }
+    }
     else if (["error", "cancelled"].includes(item.state)) retryBatchItem(row.batchId, item.id, action);
   });
 
@@ -442,6 +600,7 @@ async function pollBatch(id, revision) {
 cancelBatchButton.addEventListener("click", async () => {
   if (!currentBatchId || batchMutationActive || batchReconcilePending) return;
   setBatchMutationActive(true);
+  batchRunGeneration += 1;
   clearTimeout(batchPollTimer);
   batchPollRevision += 1;
   try {
@@ -480,6 +639,7 @@ async function retryBatchItem(batchId, itemId, button) {
     });
     currentBatchId = batch.id;
     renderBatch(batch);
+    runJob(itemId).catch((error) => setStatus(batchStatusBox, error.message));
     scheduleBatchPoll(batch);
   } catch (error) {
     if (error.status === 404) {
@@ -499,11 +659,54 @@ async function retryBatchItem(batchId, itemId, button) {
   }
 }
 
+archiveLink.addEventListener("click", async (event) => {
+  event.preventDefault();
+  if (!lastBatch?.archiveUrl || archiveLink.getAttribute("aria-disabled") === "true") return;
+  archiveLink.setAttribute("aria-disabled", "true");
+  setStatus(batchStatusBox, "Montando o ZIP privado…", "loading");
+  try {
+    await requestDownload(lastBatch.archiveUrl);
+    setStatus(batchStatusBox, "ZIP pronto. O download começou.", "success");
+  } catch (error) {
+    setStatus(batchStatusBox, error.message);
+  } finally {
+    archiveLink.removeAttribute("aria-disabled");
+  }
+});
+
 fetch("/api/health")
   .then((response) => response.json())
   .then((health) => {
-    if (!health.ytDlp) setStatus(statusBox, "A configuração inicial ainda não foi feita. Feche esta janela e execute npm run setup no Terminal.");
-    else if (!health.ffmpeg) setStatus(statusBox, "O ffmpeg não foi encontrado. Instale-o antes de baixar áudios.");
-    else if (!health.zip) setStatus(batchStatusBox, "O download em ZIP não está disponível neste computador.", "warning");
+    downloadsReady = Boolean(health.downloadsReady && health.ytDlp && health.ffmpeg);
+    runtimeBadge.classList.toggle("is-paused", !downloadsReady);
+    runtimeBadge.replaceChildren(
+      document.createElement("span"),
+      document.createTextNode(downloadsReady ? " Online e protegido" : " Online · downloads pausados"),
+    );
+    searchButton.disabled = !downloadsReady;
+    syncBatchControls();
+    if (!downloadsReady) {
+      const message = "O site e seus dados estão online. O processamento do YouTube aguarda uma saída residencial dedicada.";
+      setStatus(statusBox, message, "warning");
+      setStatus(batchStatusBox, message, "warning");
+    } else if (!health.zip) {
+      setStatus(batchStatusBox, "O download em ZIP está temporariamente indisponível.", "warning");
+    }
   })
-  .catch(() => setStatus(statusBox, "O servidor local não respondeu. Reinicie o aplicativo."));
+  .catch(() => {
+    downloadsReady = false;
+    searchButton.disabled = true;
+    syncBatchControls();
+    setStatus(statusBox, "O serviço online não respondeu. Tente recarregar a página.");
+  });
+
+authClient.getSession()
+  .then(async ({ data }) => {
+    if (!data?.user) {
+      showSignedOut();
+      return;
+    }
+    await token();
+    showAuthenticated(data.user);
+  })
+  .catch(() => showSignedOut());

@@ -22,7 +22,8 @@ import { DownloadScheduler } from "./scheduler.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
-const publicDir = path.join(root, "public");
+const builtPublicDir = path.join(root, "dist");
+const publicDir = existsSync(path.join(builtPublicDir, "index.html")) ? builtPublicDir : path.join(root, "public");
 const runtimeRoot = process.env.RUNTIME_DIR ? path.resolve(process.env.RUNTIME_DIR) : path.join(root, ".runtime");
 const sessionId = randomUUID();
 const runtimeDir = path.join(runtimeRoot, `session-${sessionId}`);

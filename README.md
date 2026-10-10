@@ -1,6 +1,9 @@
 # FITA
 
-Aplicativo local para extrair o áudio de vídeos públicos do YouTube e baixar os arquivos pelo navegador. O servidor escuta somente em `127.0.0.1`, usa `yt-dlp` para obter o conteúdo e `ffmpeg` para converter o áudio.
+Aplicativo para extrair o áudio de vídeos públicos do YouTube, individualmente ou em lotes de até 50 faixas. O projeto oferece dois modos:
+
+- **Local:** roda em `127.0.0.1`, usa a conexão do computador e salva pelo navegador.
+- **Online:** usa Neon Auth e Postgres, Vercel Functions, Vercel Sandbox e Vercel Blob privado.
 
 > Use apenas em conteúdos próprios, autorizados, em domínio público ou cuja licença/lei permita o download. Você é responsável por cumprir os termos do YouTube e os direitos autorais aplicáveis.
 
@@ -29,6 +32,32 @@ Abra `http://127.0.0.1:4173`. Pressione `Ctrl+C` no Terminal para encerrar.
 - Acesso à internet durante a instalação e os downloads.
 
 O `yt-dlp` fica em `.tools`, dentro do projeto. Nenhum serviço externo próprio recebe os links. Os arquivos intermediários ficam em `.runtime`; o arquivo final é salvo pela configuração normal de downloads do seu navegador.
+
+## Versão online
+
+A publicação online exige estas variáveis no projeto Vercel:
+
+- `DATABASE_URL`
+- `NEON_AUTH_BASE_URL`
+- `NEON_AUTH_JWKS_URL`
+- `SANDBOX_SNAPSHOT_ID`
+- `BLOB_READ_WRITE_TOKEN`
+- `YTDLP_PROXY_URL`
+
+`YTDLP_PROXY_URL` deve apontar para uma saída residencial dedicada, em formato aceito pelo `yt-dlp`, por exemplo `http://usuario:senha@host:porta` ou `socks5://usuario:senha@host:porta`. Mantenha essa variável somente nos ambientes secretos da Vercel; nunca a salve no repositório.
+
+IPs comuns de datacenter podem receber a tela “confirme que você não é um robô” do YouTube. Sem `YTDLP_PROXY_URL`, a API responde `503` antes de criar Sandboxes, evitando consumo inútil. Não é recomendado usar cookies da conta pessoal do YouTube em servidores compartilhados.
+
+Para preparar e publicar:
+
+```bash
+npm install
+npm run migrate
+npm test
+vercel deploy --prod
+```
+
+Os downloads online exigem conta. Cada usuário só acessa os próprios lotes e arquivos; os objetos são privados e os links assinados expiram em dez minutos.
 
 ## Download em massa
 

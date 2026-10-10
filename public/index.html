@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f4b6a6" />
     <meta name="description" content="Extraia e salve o áudio de vídeos do YouTube no seu computador." />
     <title>FITA — áudio no seu computador</title>
-    <link rel="stylesheet" href="/styles.css?v=2.0.0" />
+    <link rel="stylesheet" href="/styles.css?v=2.1.0" />
   </head>
   <body>
     <div class="page-shell">
@@ -19,40 +19,45 @@
         </a>
         <div class="account-area">
           <div class="local-badge"><span></span> Online e protegido</div>
+          <button id="open-auth" class="quiet-button compact" type="button">Entrar</button>
           <span id="account-email" class="account-email" hidden></span>
           <button id="sign-out" class="quiet-button compact" type="button" hidden>Sair</button>
         </div>
       </header>
 
-      <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
-        <div>
-          <p class="eyebrow">Sua cabine privada</p>
-          <h1 id="auth-title">Entre para soltar o <em>play.</em></h1>
-          <p>Os downloads usam processamento isolado e arquivos privados. Crie sua conta gratuita ou entre para continuar.</p>
-        </div>
-        <form id="auth-form" class="auth-form">
-          <div class="auth-switch" role="tablist" aria-label="Acesso">
-            <button id="sign-in-tab" class="is-active" type="button">Entrar</button>
-            <button id="sign-up-tab" type="button">Criar conta</button>
+      <div id="auth-panel" class="auth-overlay" hidden>
+        <section class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
+          <button id="close-auth" class="auth-close" type="button" aria-label="Fechar acesso">×</button>
+          <div class="auth-copy">
+            <p class="eyebrow">Só falta liberar o download</p>
+            <h2 id="auth-title">Entre para baixar.</h2>
+            <p id="auth-description">Sua conta mantém a fila e os arquivos privados. A busca continua livre.</p>
+            <p id="auth-intent" class="auth-intent">Você poderá continuar exatamente de onde parou.</p>
           </div>
-          <div id="name-field" class="auth-field" hidden>
-            <label for="auth-name">Seu nome</label>
-            <input id="auth-name" name="name" autocomplete="name" placeholder="Ex.: Miguel Santana" />
-          </div>
-          <div class="auth-field">
-            <label for="auth-email">E-mail</label>
-            <input id="auth-email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required />
-          </div>
-          <div class="auth-field">
-            <label for="auth-password">Senha</label>
-            <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="Mínimo de 8 caracteres" required />
-          </div>
-          <button id="auth-submit" class="download-button" type="submit">Entrar no FITA</button>
-          <div id="auth-status" class="status" role="status" aria-live="polite" hidden></div>
-        </form>
-      </section>
+          <form id="auth-form" class="auth-form">
+            <div class="auth-switch" role="tablist" aria-label="Acesso">
+              <button id="sign-in-tab" class="is-active" type="button">Entrar</button>
+              <button id="sign-up-tab" type="button">Criar conta</button>
+            </div>
+            <div id="name-field" class="auth-field" hidden>
+              <label for="auth-name">Seu nome</label>
+              <input id="auth-name" name="name" autocomplete="name" placeholder="Ex.: Miguel Santana" />
+            </div>
+            <div class="auth-field">
+              <label for="auth-email">E-mail</label>
+              <input id="auth-email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required />
+            </div>
+            <div class="auth-field">
+              <label for="auth-password">Senha</label>
+              <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="Mínimo de 8 caracteres" required />
+            </div>
+            <button id="auth-submit" class="download-button" type="submit">Entrar no FITA</button>
+            <div id="auth-status" class="status" role="status" aria-live="polite" hidden></div>
+          </form>
+        </section>
+      </div>
 
-      <main id="app-content" hidden>
+      <main id="app-content">
         <section class="hero" aria-labelledby="page-title">
           <div class="hero-copy">
             <p class="eyebrow">Áudio direto para o seu computador</p>
@@ -74,6 +79,13 @@
             </div>
           </div>
         </section>
+
+        <aside class="ad-break" aria-label="Publicidade">
+          <div class="ad-label"><span>Publicidade</span><small>Intervalo comercial</small></div>
+          <div class="ad-slot" data-ad-slot-key="top">
+            <p>Espaço reservado para publicidade</p>
+          </div>
+        </aside>
 
         <section class="workspace" aria-label="Baixar áudio">
           <div class="mode-switch" role="tablist" aria-label="Modo de download">
@@ -220,6 +232,13 @@
           </div>
         </section>
 
+        <aside class="ad-break ad-break-inline" aria-label="Publicidade">
+          <div class="ad-label"><span>Publicidade</span><small>Apoia o FITA</small></div>
+          <div class="ad-slot" data-ad-slot-key="inline">
+            <p>Espaço reservado para publicidade</p>
+          </div>
+        </aside>
+
         <section class="how-it-works" aria-labelledby="how-title">
           <div>
             <p class="eyebrow">Como funciona</p>
@@ -238,6 +257,6 @@
         <p>Processamento isolado · armazenamento privado · links de download temporários</p>
       </footer>
     </div>
-    <script src="/app.js?v=2.0.0" type="module"></script>
+    <script src="/app.js?v=2.1.0" type="module"></script>
   </body>
 </html>

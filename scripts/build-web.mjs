@@ -31,6 +31,9 @@ async function loadLocalEnv() {
 await loadLocalEnv();
 const authUrl = process.env.NEON_AUTH_BASE_URL;
 if (!authUrl) throw new Error("NEON_AUTH_BASE_URL is required to build the web client");
+const adsenseClientId = process.env.ADSENSE_CLIENT_ID || "";
+const adsenseSlotTop = process.env.ADSENSE_SLOT_TOP || "";
+const adsenseSlotInline = process.env.ADSENSE_SLOT_INLINE || "";
 
 await mkdir(outDir, { recursive: true });
 await Promise.all([
@@ -49,5 +52,8 @@ await build({
   sourcemap: true,
   define: {
     __NEON_AUTH_URL__: JSON.stringify(authUrl),
+    __ADSENSE_CLIENT_ID__: JSON.stringify(adsenseClientId),
+    __ADSENSE_SLOT_TOP__: JSON.stringify(adsenseSlotTop),
+    __ADSENSE_SLOT_INLINE__: JSON.stringify(adsenseSlotInline),
   },
 });

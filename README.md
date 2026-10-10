@@ -44,6 +44,14 @@ A publicação online exige estas variáveis no projeto Vercel:
 - `BLOB_READ_WRITE_TOKEN`
 - `YTDLP_PROXY_URL`
 
+Para ativar os dois espaços de publicidade com Google AdSense, configure também:
+
+- `ADSENSE_CLIENT_ID` — identificador no formato `ca-pub-...`
+- `ADSENSE_SLOT_TOP` — ID do bloco horizontal após a abertura
+- `ADSENSE_SLOT_INLINE` — ID do bloco após a área de downloads
+
+Sem esses três valores, o layout mantém espaços identificados como publicidade, mas não carrega scripts nem exibe campanhas fictícias.
+
 `YTDLP_PROXY_URL` deve apontar para uma saída residencial dedicada, em formato aceito pelo `yt-dlp`, por exemplo `http://usuario:senha@host:porta` ou `socks5://usuario:senha@host:porta`. Mantenha essa variável somente nos ambientes secretos da Vercel; nunca a salve no repositório.
 
 IPs comuns de datacenter podem receber a tela “confirme que você não é um robô” do YouTube. Sem `YTDLP_PROXY_URL`, a API responde `503` antes de criar Sandboxes, evitando consumo inútil. Não é recomendado usar cookies da conta pessoal do YouTube em servidores compartilhados.
@@ -57,7 +65,7 @@ npm test
 vercel deploy --prod
 ```
 
-Os downloads online exigem conta. Cada usuário só acessa os próprios lotes e arquivos; os objetos são privados e os links assinados expiram em dez minutos.
+A navegação e a consulta de uma faixa são públicas. A conta é solicitada somente quando a pessoa inicia um download individual ou em lote. Cada usuário só acessa os próprios lotes e arquivos; os objetos são privados e os links assinados expiram em dez minutos.
 
 ## Download em massa
 

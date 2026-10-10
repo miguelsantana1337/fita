@@ -495,13 +495,13 @@ async function handle(req, res) {
     });
   }
 
-  const userId = await authenticate(req);
-
   if (req.method === "POST" && route === "/inspect") {
     assertYoutubeAccess();
     const body = await readJson(req);
     return sendJson(res, 200, await inspectYoutube(body.url));
   }
+
+  const userId = await authenticate(req);
 
   if (req.method === "POST" && route === "/download") {
     assertYoutubeAccess();

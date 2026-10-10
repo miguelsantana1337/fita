@@ -1,6 +1,11 @@
 import { createAuthClient } from "@neondatabase/auth";
 
 const authClient = createAuthClient(__NEON_AUTH_URL__);
+const adsenseClientId = __ADSENSE_CLIENT_ID__;
+const adsenseSlots = {
+  top: __ADSENSE_SLOT_TOP__,
+  inline: __ADSENSE_SLOT_INLINE__,
+};
 const runtimeBadge = document.querySelector(".local-badge");
 const authPanel = document.querySelector("#auth-panel");
 const authForm = document.querySelector("#auth-form");
@@ -9,7 +14,9 @@ const authSubmit = document.querySelector("#auth-submit");
 const signInTab = document.querySelector("#sign-in-tab");
 const signUpTab = document.querySelector("#sign-up-tab");
 const nameField = document.querySelector("#name-field");
-const appContent = document.querySelector("#app-content");
+const authIntent = document.querySelector("#auth-intent");
+const openAuthButton = document.querySelector("#open-auth");
+const closeAuthButton = document.querySelector("#close-auth");
 const accountEmail = document.querySelector("#account-email");
 const signOutButton = document.querySelector("#sign-out");
 const linkForm = document.querySelector("#link-form");
@@ -40,6 +47,8 @@ let batchReconcilePending = false;
 let singleJobActive = false;
 let authMode = "sign-in";
 let accessToken = null;
+let pendingAuthAction = null;
+let authFocusReturn = null;
 let batchRunGeneration = 0;
 let downloadsReady = false;
 
@@ -86,7 +95,7 @@ async function token() {
 }
 
 async function api(path, options = {}) {
-  const publicRequest = path === "/api/health";
+  const publicRequest = path === "/api/health" || path === "/api/inspect";
   const headers = { "content-type": "application/json", ...(options.headers || {}) };
   if (!publicRequest) headers.authorization = `Bearer ${await token()}`;
   const response = await fetch(path, {
@@ -156,22 +165,57 @@ function setAuthMode(mode) {
   setStatus(authStatus, "");
 }
 
-function showAuthenticated(user) {
+function openAuth({ action = null, intent = "Entre para acessar sua conta e seus downloads privados." } = {}) {
+  pendingAuthAction = action;
+  authFocusReturn = document.activeElement;
+  authIntent.textContent = intent;
+  authPanel.hidden = false;
+  document.body.classList.add("auth-open");
+  requestAnimationFrame(() => document.querySelector("#auth-email").focus());
+}
+
+function closeAuth({ keepAction = false } = {}) {
   authPanel.hidden = true;
-  appContent.hidden = false;
+  document.body.classList.remove("auth-open");
+  setStatus(authStatus, "");
+  if (!keepAction) pendingAuthAction = null;
+  if (authFocusReturn instanceof HTMLElement) authFocusReturn.focus();
+  authFocusReturn = null;
+}
+
+async function requireAuth(action, intent) {
+  try {
+    await token();
+    return true;
+  } catch {
+    accessToken = null;
+    openAuth({ action, intent });
+    return false;
+  }
+}
+
+function showAuthenticated(user) {
   accountEmail.textContent = user.email || "Conta FITA";
   accountEmail.hidden = false;
+  openAuthButton.hidden = true;
   signOutButton.hidden = false;
 }
 
 function showSignedOut() {
   accessToken = null;
-  authPanel.hidden = false;
-  appContent.hidden = true;
   accountEmail.hidden = true;
+  openAuthButton.hidden = false;
   signOutButton.hidden = true;
 }
 
+openAuthButton.addEventListener("click", () => openAuth());
+closeAuthButton.addEventListener("click", () => closeAuth());
+authPanel.addEventListener("click", (event) => {
+  if (event.target === authPanel) closeAuth();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !authPanel.hidden) closeAuth();
+});
 signInTab.addEventListener("click", () => setAuthMode("sign-in"));
 signUpTab.addEventListener("click", () => setAuthMode("sign-up"));
 
@@ -195,6 +239,10 @@ authForm.addEventListener("submit", async (event) => {
     accessToken = null;
     await token();
     showAuthenticated(session.data.user);
+    const action = pendingAuthAction;
+    closeAuth({ keepAction: true });
+    pendingAuthAction = null;
+    if (action) queueMicrotask(action);
   } catch (error) {
     setStatus(authStatus, error.message || "Não foi possível autenticar.");
   } finally {
@@ -277,6 +325,19 @@ linkForm.addEventListener("submit", async (event) => {
 downloadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!selectedUrl) return;
+  if (!downloadsReady) {
+    setStatus(statusBox, "Os downloads estão pausados até a saída residencial ser configurada.", "warning");
+    return;
+  }
+  if (!await requireAuth(
+    startSingleDownload,
+    "Entre ou crie sua conta para baixar esta faixa. Depois do acesso, o download começa automaticamente.",
+  )) return;
+  startSingleDownload();
+});
+
+async function startSingleDownload() {
+  if (singleJobActive || !selectedUrl) return;
   singleJobActive = true;
   downloadButton.disabled = true;
   searchButton.disabled = true;
@@ -305,7 +366,7 @@ downloadForm.addEventListener("submit", async (event) => {
     urlInput.disabled = false;
     singleJobActive = false;
   }
-});
+}
 
 function updateProgress(job) {
   const percent = Math.round(job.progress || 0);
@@ -357,6 +418,15 @@ batchForm.addEventListener("submit", async (event) => {
     return;
   }
   if (batchMutationActive || batchReconcilePending) return;
+  if (!await requireAuth(
+    startBatchDownload,
+    "Entre ou crie sua conta para iniciar o lote. Sua lista será retomada automaticamente após o acesso.",
+  )) return;
+  startBatchDownload();
+});
+
+async function startBatchDownload() {
+  if (batchMutationActive || batchReconcilePending) return;
   const hadBatch = Boolean(lastBatch);
   setBatchMutationActive(true);
   if (!hadBatch) {
@@ -392,7 +462,7 @@ batchForm.addEventListener("submit", async (event) => {
   } finally {
     setBatchMutationActive(false);
   }
-});
+}
 
 function renderBatchHeader(batch) {
   const titles = {
@@ -673,6 +743,51 @@ archiveLink.addEventListener("click", async (event) => {
     archiveLink.removeAttribute("aria-disabled");
   }
 });
+
+function setupAds() {
+  const clientId = String(adsenseClientId || "").trim();
+  const placements = [...document.querySelectorAll("[data-ad-slot-key]")];
+  const validClient = /^ca-pub-\d+$/.test(clientId);
+  const livePlacements = placements.filter((placement) => /^\d+$/.test(String(adsenseSlots[placement.dataset.adSlotKey] || "")));
+  if (!validClient || !livePlacements.length) return;
+
+  for (const placement of livePlacements) {
+    const ad = document.createElement("ins");
+    ad.className = "adsbygoogle";
+    ad.dataset.adClient = clientId;
+    ad.dataset.adSlot = adsenseSlots[placement.dataset.adSlotKey];
+    ad.dataset.adFormat = "auto";
+    ad.dataset.fullWidthResponsive = "true";
+    placement.dataset.adState = "loading";
+    placement.replaceChildren(ad);
+  }
+
+  const script = document.createElement("script");
+  script.async = true;
+  script.crossOrigin = "anonymous";
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
+  script.addEventListener("load", () => {
+    window.adsbygoogle = window.adsbygoogle || [];
+    for (const placement of livePlacements) {
+      try {
+        window.adsbygoogle.push({});
+        placement.dataset.adState = "live";
+      } catch {
+        placement.dataset.adState = "error";
+        placement.innerHTML = "<p>Publicidade temporariamente indisponível</p>";
+      }
+    }
+  });
+  script.addEventListener("error", () => {
+    for (const placement of livePlacements) {
+      placement.dataset.adState = "error";
+      placement.innerHTML = "<p>Publicidade temporariamente indisponível</p>";
+    }
+  });
+  document.head.append(script);
+}
+
+setupAds();
 
 fetch("/api/health")
   .then((response) => response.json())

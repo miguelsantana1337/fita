@@ -1,6 +1,6 @@
 {
   "name": "fita-youtube-local",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Aplicativo protegido para extrair áudio do YouTube em uma faixa ou em lote.",
   "type": "module",

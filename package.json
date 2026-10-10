@@ -1,0 +1,15 @@
+{
+  "name": "fita-youtube-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aplicativo local para extrair áudio de vídeos do YouTube.",
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

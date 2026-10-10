@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4b6a6" />
+    <meta name="description" content="Extraia e salve o áudio de vídeos do YouTube no seu computador." />
+    <title>FITA — áudio no seu computador</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="masthead">
+        <a class="brand" href="/" aria-label="FITA, início">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span><span></span>
+          </span>
+          <span>FITA</span>
+        </a>
+        <div class="local-badge"><span></span> Rodando só neste Mac</div>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="page-title">
+          <div class="hero-copy">
+            <p class="eyebrow">Áudio direto para o seu computador</p>
+            <h1 id="page-title">Do link para o <em>play.</em></h1>
+            <p class="intro">Cole um vídeo do YouTube, confira a faixa e escolha como quer salvar. Sem cadastro, sem nuvem.</p>
+          </div>
+
+          <div class="tape" aria-hidden="true">
+            <div class="tape-label">
+              <span>FITA MIX · LADO A</span>
+              <div class="waveform">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+            <div class="tape-window">
+              <span class="reel"></span>
+              <span class="tape-line"></span>
+              <span class="reel"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace" aria-label="Baixar áudio">
+          <form id="link-form" class="link-form">
+            <label for="youtube-url">Link do vídeo</label>
+            <div class="input-row">
+              <input id="youtube-url" name="url" type="url" inputmode="url" autocomplete="url" placeholder="https://youtube.com/watch?v=..." required />
+              <button class="primary-button" type="submit">
+                <span>Buscar vídeo</span>
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" /></svg>
+              </button>
+            </div>
+            <p class="field-hint">Vídeos públicos e uma faixa por vez.</p>
+          </form>
+
+          <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+          <article id="track-card" class="track-card" hidden>
+            <div class="cover-wrap">
+              <img id="track-cover" alt="" />
+              <span class="play-glyph" aria-hidden="true">▶</span>
+            </div>
+            <div class="track-info">
+              <p class="result-label">Faixa encontrada</p>
+              <h2 id="track-title"></h2>
+              <p class="track-meta"><span id="track-channel"></span><span id="track-duration"></span></p>
+            </div>
+            <form id="download-form" class="download-form">
+              <div class="select-field">
+                <label for="format">Formato</label>
+                <select id="format" name="format">
+                  <option value="mp3">MP3</option>
+                  <option value="m4a">M4A</option>
+                  <option value="opus">Opus</option>
+                </select>
+              </div>
+              <div class="select-field">
+                <label for="quality">Qualidade</label>
+                <select id="quality" name="quality">
+                  <option value="128">128 kbps</option>
+                  <option value="192" selected>192 kbps</option>
+                  <option value="256">256 kbps</option>
+                  <option value="320">320 kbps</option>
+                </select>
+              </div>
+              <button id="download-button" class="download-button" type="submit">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 17h12" /></svg>
+                <span>Baixar áudio</span>
+              </button>
+            </form>
+          </article>
+
+          <section id="progress-card" class="progress-card" aria-labelledby="progress-title" hidden>
+            <div class="progress-copy">
+              <div>
+                <p class="result-label">Preparando a faixa</p>
+                <h2 id="progress-title">Baixando e convertendo…</h2>
+              </div>
+              <strong id="progress-value">0%</strong>
+            </div>
+            <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div>
+            <p id="progress-detail" class="progress-detail">Iniciando download…</p>
+          </section>
+        </section>
+
+        <section class="how-it-works" aria-labelledby="how-title">
+          <div>
+            <p class="eyebrow">Como funciona</p>
+            <h2 id="how-title">Três movimentos.<br />Uma faixa pronta.</h2>
+          </div>
+          <ol>
+            <li><span>01</span><div><strong>Cole o link</strong><p>Use a URL de um vídeo público do YouTube.</p></div></li>
+            <li><span>02</span><div><strong>Escolha o som</strong><p>Defina o formato e a qualidade do arquivo.</p></div></li>
+            <li><span>03</span><div><strong>Salve no Mac</strong><p>O navegador baixa o áudio na pasta configurada.</p></div></li>
+          </ol>
+        </section>
+      </main>
+
+      <footer>
+        <p>Use o FITA apenas para conteúdos próprios, autorizados ou permitidos por lei.</p>
+        <p>Processamento local · arquivos temporários expiram em 30 min</p>
+      </footer>
+    </div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

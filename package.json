@@ -1,6 +1,6 @@
 {
   "name": "fita-youtube-local",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Aplicativo protegido para extrair áudio do YouTube em uma faixa ou em lote.",
   "type": "module",
@@ -9,6 +9,8 @@
     "migrate": "node scripts/migrate.mjs",
     "setup": "node scripts/setup.mjs",
     "start": "npm run build && node src/server.js",
+    "worker": "node scripts/worker.mjs",
+    "start:worker": "npm run setup && node scripts/worker.mjs",
     "test": "node --test"
   },
   "engines": {

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
@@ -19,7 +19,17 @@ for (const line of envText.split(/\r?\n/)) {
 
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required");
 const sql = neon(process.env.DATABASE_URL);
-const migration = await readFile(path.join(root, "migrations", "001_cloud_runtime.sql"), "utf8");
-const statements = migration.split(";").map((statement) => statement.trim()).filter(Boolean);
-for (const statement of statements) await sql.query(statement);
-console.log(`Applied ${statements.length} migration statements.`);
+const migrationDir = path.join(root, "migrations");
+const files = (await readdir(migrationDir))
+  .filter((file) => /^\d+.*\.sql$/i.test(file))
+  .sort((left, right) => left.localeCompare(right));
+
+let appliedStatements = 0;
+for (const file of files) {
+  const migration = await readFile(path.join(migrationDir, file), "utf8");
+  const statements = migration.split(";").map((statement) => statement.trim()).filter(Boolean);
+  for (const statement of statements) await sql.query(statement);
+  appliedStatements += statements.length;
+  console.log(`Applied ${file} (${statements.length} statements).`);
+}
+console.log(`Applied ${appliedStatements} migration statements from ${files.length} files.`);

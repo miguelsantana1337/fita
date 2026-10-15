@@ -298,7 +298,7 @@ function showTrack(track) {
 linkForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!downloadsReady) {
-    setStatus(statusBox, "Os downloads estão pausados até a saída residencial ser configurada.", "warning");
+    setStatus(statusBox, "A fila híbrida ainda está sendo preparada. Tente novamente em instantes.", "warning");
     return;
   }
   if (singleJobActive) return;
@@ -326,7 +326,7 @@ downloadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!selectedUrl) return;
   if (!downloadsReady) {
-    setStatus(statusBox, "Os downloads estão pausados até a saída residencial ser configurada.", "warning");
+    setStatus(statusBox, "A fila híbrida ainda está sendo preparada. Tente novamente em instantes.", "warning");
     return;
   }
   if (!await requireAuth(
@@ -356,7 +356,6 @@ async function startSingleDownload() {
         quality: document.querySelector("#quality").value,
       }),
     });
-    runJob(job.id).catch((error) => setStatus(statusBox, error.message));
     await pollJob(job.id);
   } catch (error) {
     progressCard.hidden = true;
@@ -375,8 +374,8 @@ function updateProgress(job) {
   document.querySelector("#single-progress-track").setAttribute("aria-valuenow", String(percent));
   const details = [];
   if (job.state === "queued" || job.state === "starting") {
-    document.querySelector("#progress-title").textContent = "Aguardando uma vaga…";
-    details.push("Aguardando uma vaga rápida…");
+    document.querySelector("#progress-title").textContent = "Aguardando o Mac processador…";
+    details.push("A tarefa continuará automaticamente quando o Mac estiver conectado");
   } else if (job.state === "downloading") {
     document.querySelector("#progress-title").textContent = "Baixando e convertendo…";
   }
@@ -414,7 +413,7 @@ async function pollJob(id) {
 batchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!downloadsReady) {
-    setStatus(batchStatusBox, "Os downloads estão pausados até a saída residencial ser configurada.", "warning");
+    setStatus(batchStatusBox, "A fila híbrida ainda está sendo preparada. Tente novamente em instantes.", "warning");
     return;
   }
   if (batchMutationActive || batchReconcilePending) return;
@@ -454,7 +453,6 @@ async function startBatchDownload() {
     currentBatchId = batch.id;
     renderBatch(batch);
     batchProgress.scrollIntoView({ behavior: "smooth", block: "start" });
-    startBatchRuns(batch);
     scheduleBatchPoll(batch);
   } catch (error) {
     if (!hadBatch) batchProgress.hidden = true;
@@ -709,7 +707,6 @@ async function retryBatchItem(batchId, itemId, button) {
     });
     currentBatchId = batch.id;
     renderBatch(batch);
-    runJob(itemId).catch((error) => setStatus(batchStatusBox, error.message));
     scheduleBatchPoll(batch);
   } catch (error) {
     if (error.status === 404) {
@@ -789,31 +786,44 @@ function setupAds() {
 
 setupAds();
 
-fetch("/api/health")
-  .then((response) => response.json())
-  .then((health) => {
-    downloadsReady = Boolean(health.downloadsReady && health.ytDlp && health.ffmpeg);
-    runtimeBadge.classList.toggle("is-paused", !downloadsReady);
-    runtimeBadge.replaceChildren(
-      document.createElement("span"),
-      document.createTextNode(downloadsReady ? " Online e protegido" : " Online · downloads pausados"),
-    );
+async function refreshHealth() {
+  try {
+    const response = await fetch("/api/health", { cache: "no-store" });
+    const health = await response.json();
+    if (!response.ok) throw new Error("health unavailable");
+    downloadsReady = Boolean(health.downloadsReady);
+    runtimeBadge.classList.toggle("is-paused", !downloadsReady || !health.workerOnline);
+    const label = !downloadsReady
+      ? " Online · fila indisponível"
+      : health.workerOnline
+        ? " Online · Mac conectado"
+        : " Online · aguardando o Mac";
+    runtimeBadge.replaceChildren(document.createElement("span"), document.createTextNode(label));
     searchButton.disabled = !downloadsReady;
     syncBatchControls();
     if (!downloadsReady) {
-      const message = "O site e seus dados estão online. O processamento do YouTube aguarda uma saída residencial dedicada.";
+      const message = "O site está online, mas a fila híbrida ainda não foi configurada.";
       setStatus(statusBox, message, "warning");
       setStatus(batchStatusBox, message, "warning");
-    } else if (!health.zip) {
-      setStatus(batchStatusBox, "O download em ZIP está temporariamente indisponível.", "warning");
+    } else if (!health.workerOnline) {
+      const message = "O Mac processador está desconectado. Você pode entrar na fila; o processamento começa quando ele voltar.";
+      if (!singleJobActive) setStatus(statusBox, message, "warning");
+      if (!lastBatch) setStatus(batchStatusBox, message, "warning");
+    } else {
+      if (!singleJobActive && statusBox.classList.contains("warning")) setStatus(statusBox, "");
+      if (!lastBatch && batchStatusBox.classList.contains("warning")) setStatus(batchStatusBox, "");
+      if (!health.zip) setStatus(batchStatusBox, "O download em ZIP está temporariamente indisponível.", "warning");
     }
-  })
-  .catch(() => {
+  } catch {
     downloadsReady = false;
     searchButton.disabled = true;
     syncBatchControls();
     setStatus(statusBox, "O serviço online não respondeu. Tente recarregar a página.");
-  });
+  }
+}
+
+refreshHealth();
+setInterval(refreshHealth, 20_000);
 
 authClient.getSession()
   .then(async ({ data }) => {

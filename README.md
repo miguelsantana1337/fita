@@ -1,9 +1,9 @@
 # FITA
 
-Aplicativo para extrair o áudio de vídeos públicos do YouTube, individualmente ou em lotes de até 50 faixas. O projeto oferece dois modos:
+Aplicativo para extrair o áudio de vídeos públicos do YouTube, individualmente ou em lotes de até 50 faixas. O projeto oferece dois modos e uma arquitetura híbrida:
 
 - **Local:** roda em `127.0.0.1`, usa a conexão do computador e salva pelo navegador.
-- **Online:** usa Neon Auth e Postgres, Vercel Functions, Vercel Sandbox e Vercel Blob privado.
+- **Online híbrido:** a interface, autenticação, fila e arquivos ficam online; um worker no Mac processa a mídia usando a conexão local e envia o resultado diretamente ao Vercel Blob privado.
 
 > Use apenas em conteúdos próprios, autorizados, em domínio público ou cuja licença/lei permita o download. Você é responsável por cumprir os termos do YouTube e os direitos autorais aplicáveis.
 
@@ -42,7 +42,7 @@ A publicação online exige estas variáveis no projeto Vercel:
 - `NEON_AUTH_JWKS_URL`
 - `SANDBOX_SNAPSHOT_ID`
 - `BLOB_READ_WRITE_TOKEN`
-- `YTDLP_PROXY_URL`
+- `FITA_WORKER_TOKEN` — segredo aleatório compartilhado somente entre a API e o worker local
 
 Para ativar os dois espaços de publicidade com Google AdSense, configure também:
 
@@ -52,9 +52,7 @@ Para ativar os dois espaços de publicidade com Google AdSense, configure també
 
 Sem esses três valores, o layout mantém espaços identificados como publicidade, mas não carrega scripts nem exibe campanhas fictícias.
 
-`YTDLP_PROXY_URL` deve apontar para uma saída residencial dedicada, em formato aceito pelo `yt-dlp`, por exemplo `http://usuario:senha@host:porta` ou `socks5://usuario:senha@host:porta`. Mantenha essa variável somente nos ambientes secretos da Vercel; nunca a salve no repositório.
-
-IPs comuns de datacenter podem receber a tela “confirme que você não é um robô” do YouTube. Sem `YTDLP_PROXY_URL`, a API responde `503` antes de criar Sandboxes, evitando consumo inútil. Não é recomendado usar cookies da conta pessoal do YouTube em servidores compartilhados.
+O segredo também deve existir em `.env.worker.local` no Mac, arquivo ignorado pelo Git. A API entrega uma reserva temporária para cada tarefa e um token de upload limitado a um único caminho privado. O worker não abre portas no computador e não recebe o token geral do Blob.
 
 Para preparar e publicar:
 
@@ -64,6 +62,25 @@ npm run migrate
 npm test
 vercel deploy --prod
 ```
+
+## Worker no Mac
+
+Depois de publicar a API, prepare `.env.worker.local`:
+
+```dotenv
+FITA_BASE_URL=https://fita-azure.vercel.app
+FITA_WORKER_TOKEN=mesmo-segredo-configurado-na-vercel
+FITA_WORKER_CONCURRENCY=3
+FITA_WORKER_LABEL=Mac principal
+```
+
+Inicie com dois cliques em `start-worker.command` ou pelo Terminal:
+
+```bash
+npm run start:worker
+```
+
+O worker envia um heartbeat a cada 25 segundos, reserva tarefas por tempo limitado, processa até quatro faixas em paralelo e renova a reserva enquanto trabalha. Se o Mac estiver desligado, as tarefas permanecem na fila e continuam quando ele voltar.
 
 A navegação e a consulta de uma faixa são públicas. A conta é solicitada somente quando a pessoa inicia um download individual ou em lote. Cada usuário só acessa os próprios lotes e arquivos; os objetos são privados e os links assinados expiram em dez minutos.
 
@@ -77,7 +94,7 @@ Abra a aba **Em massa** para colar até 50 links, um por linha. Também é poss�
 
 Cada faixa usa até quatro fragmentos paralelos quando o formato do vídeo permite. Uma falha não interrompe as demais; itens com erro podem ser tentados novamente. Ao final, use **Baixar tudo em ZIP** para reunir os arquivos prontos sem recomprimir o áudio.
 
-O processamento continua local. Os arquivos temporários agora expiram duas horas depois que o lote termina, e trabalhos ativos nunca são removidos pela limpeza automática.
+O processamento continua local e os arquivos temporários do worker são removidos depois do upload. Playlists são expandidas pelo Mac antes de suas faixas entrarem na fila.
 
 ## Formatos
 
